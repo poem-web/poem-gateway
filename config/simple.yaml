@@ -1,0 +1,35 @@
+listeners:
+  - type: tcp
+    bind: 0.0.0.0:8000
+  - type: tcp
+    bind: 127.0.0.1:8080
+consumers:
+  - name: sunli
+    auth:
+      type: basic
+      username: demo
+      password: 123456
+routes:
+  - path: /
+    service: test_echo
+    plugins:
+      - type: responseRewrite
+        headers:
+          X-Server: Test Server ({{ remoteAddr }})
+      - type: limitCount
+        interval: 1
+        refill: 1
+        rejectedCode: 403
+        storage:
+          type: redis
+          host: localhost
+          port: 6379
+services:
+  - name: test_upstream
+    target:
+      type: upstream
+      scheme: http
+      host: localhost:3000
+  - name: test_echo
+    target:
+      type: echo
