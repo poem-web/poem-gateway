@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use bytes::Bytes;
 use parking_lot::RwLock;
 use poem::{
@@ -16,8 +16,15 @@ use crate::{
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+enum BreakStatusCodes {
+    In(Vec<u16>),
+    NotIn(Vec<u16>),
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Config {
-    break_response_code: u16,
+    break_status_codes: BreakStatusCodes,
     #[serde(default = "default_start_breaker_sec")]
     start_breaker_sec: u64,
     #[serde(default = "default_max_breaker_sec")]
@@ -38,12 +45,30 @@ const fn default_failures() -> u32 {
     3
 }
 
+fn parse_status_codes(codes: &[u16]) -> Result<Vec<StatusCode>> {
+    let mut status_codes = Vec::new();
+    for code in codes {
+        status_codes.push(
+            StatusCode::try_from(*code)
+                .with_context(|| format!("invalid break response code `{}`", code))?,
+        );
+    }
+    Ok(status_codes)
+}
+
 #[typetag::serde(name = "circuitBreaker")]
 #[async_trait::async_trait]
 impl PluginConfig for Config {
     async fn create(&self) -> Result<Arc<dyn Plugin>> {
         Ok(Arc::new(CircuitBreaker {
-            break_response_code: Default::default(),
+            error_checker: match &self.break_status_codes {
+                BreakStatusCodes::In(codes) => {
+                    ErrorChecker::StatusCodeIn(parse_status_codes(codes)?)
+                }
+                BreakStatusCodes::NotIn(codes) => {
+                    ErrorChecker::StatusCodeNotIn(parse_status_codes(codes)?)
+                }
+            },
             cb: failsafe::Config::new()
                 .failure_policy(failsafe::failure_policy::consecutive_failures(
                     self.failures,
@@ -58,8 +83,22 @@ impl PluginConfig for Config {
     }
 }
 
+enum ErrorChecker {
+    StatusCodeIn(Vec<StatusCode>),
+    StatusCodeNotIn(Vec<StatusCode>),
+}
+
+impl ErrorChecker {
+    fn is_error(&self, status: StatusCode) -> bool {
+        match self {
+            ErrorChecker::StatusCodeIn(codes) => codes.contains(&status),
+            ErrorChecker::StatusCodeNotIn(codes) => !codes.contains(&status),
+        }
+    }
+}
+
 struct CircuitBreaker<T> {
-    break_response_code: StatusCode,
+    error_checker: ErrorChecker,
     cb: T,
     last_err_resp: RwLock<Option<(StatusCode, HeaderMap, Bytes)>>,
 }
@@ -74,12 +113,11 @@ where
     }
 
     async fn call(&self, req: Request, ctx: &mut PluginContext, next: NextPlugin<'_>) -> Response {
-        let break_response_code = self.break_response_code;
         match self
             .cb
             .call(async move {
                 let resp = next.call(ctx, req).await;
-                if resp.status() != break_response_code {
+                if !self.error_checker.is_error(resp.status()) {
                     Ok(resp)
                 } else {
                     Err(resp)
