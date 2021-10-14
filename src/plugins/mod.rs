@@ -1,5 +1,7 @@
 mod auth_basic;
+mod auth_key;
 mod circuit_breaker;
+mod cors;
 mod limit_count;
 mod response_rewrite;
 

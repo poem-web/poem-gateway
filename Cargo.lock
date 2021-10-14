@@ -640,6 +640,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56899898ce76aaf4a0f24d914c97ea6ed976d42fec6ad33fcbb0a1103e07b2b0"
 
 [[package]]
+name = "either"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
+
+[[package]]
 name = "encoding_rs"
 version = "0.8.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1131,6 +1137,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68f2d64f2edebec4ce84ad108148e67e1064789bee435edc5b60ad398714a3a9"
 
 [[package]]
+name = "itertools"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69ddb889f9d0d08a67338271fa9b62996bc788c7796a5c18cf057420aaed5eaf"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1500,9 +1515,9 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "poem"
-version = "1.0.1"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1036f34b3096aecc83475af347ed1d5d5528423a7aadd9c161a603c7eaa1c5bf"
+checksum = "f3c45ff1df12cf75d189a596e09083aa387a959c40f08a524abc634b3883a09e"
 dependencies = [
  "anyhow",
  "askama",
@@ -1566,6 +1581,7 @@ dependencies = [
  "dashmap",
  "failsafe",
  "futures-util",
+ "itertools",
  "lru",
  "once_cell",
  "parking_lot",
@@ -1574,6 +1590,7 @@ dependencies = [
  "redis",
  "reqwest",
  "serde",
+ "serde_urlencoded",
  "serde_yaml",
  "structopt",
  "tera",
