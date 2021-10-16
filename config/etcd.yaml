@@ -1,0 +1,23 @@
+provider:
+  type: etcd
+  endpoints:
+    - 127.0.0.1:23791
+    - 127.0.0.1:23792
+    - 127.0.0.1:23793
+admin:
+  listeners:
+    - type: tcp
+      bind: 127.0.0.1:4000
+  routes:
+    - path: /api
+      service:
+        endpoint:
+          type: openapiAdmin
+    - path: /graphql
+      service:
+        endpoint:
+          type: graphqlAdmin
+    - path: /metrics
+      service:
+        endpoint:
+          type: prometheusExporter

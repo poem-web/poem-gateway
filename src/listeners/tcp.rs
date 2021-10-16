@@ -1,11 +1,11 @@
-use poem::listener::{AcceptorExt, BoxAcceptor, Listener as _};
+use poem::listener::{AcceptorExt, BoxAcceptor, Listener};
 use serde::{Deserialize, Serialize};
 
-use crate::config::ListenerConfig;
+use crate::config::AcceptorConfig;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-struct TcpListener {
+struct Config {
     #[serde(default = "default_bind")]
     bind: String,
 }
@@ -16,7 +16,7 @@ fn default_bind() -> String {
 
 #[typetag::serde(name = "tcp")]
 #[async_trait::async_trait]
-impl ListenerConfig for TcpListener {
+impl AcceptorConfig for Config {
     async fn create(&self) -> anyhow::Result<BoxAcceptor> {
         Ok(poem::listener::TcpListener::bind(&self.bind)
             .into_acceptor()

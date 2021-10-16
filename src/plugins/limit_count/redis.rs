@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::plugins::limit_count::storage::{Storage, StorageConfig};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct RedisStorageConfig {
     host: String,

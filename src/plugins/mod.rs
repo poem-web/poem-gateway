@@ -1,8 +1,11 @@
 mod auth_basic;
 mod auth_key;
 mod circuit_breaker;
+mod consumer_restriction;
 mod cors;
 mod limit_count;
+mod prometheus;
+mod request_id;
 mod response_rewrite;
 
 use std::{
@@ -10,12 +13,13 @@ use std::{
     sync::Arc,
 };
 
-use poem::{web::RemoteAddr, Endpoint, Request, Response};
+use poem::{web::RemoteAddr, Addr, Endpoint, Request, Response};
 use tera::Tera;
 
 #[derive(Default)]
 pub struct PluginContext {
     tera_ctx: tera::Context,
+    consumer_name: Option<String>,
 }
 
 impl Deref for PluginContext {
@@ -36,15 +40,26 @@ impl PluginContext {
     pub fn new(req: &Request) -> Self {
         let mut tera_ctx = tera::Context::default();
 
-        if let RemoteAddr::SocketAddr(addr) = req.remote_addr() {
+        if let RemoteAddr(Addr::SocketAddr(addr)) = req.remote_addr() {
             tera_ctx.insert("remoteAddr", &addr.ip());
         }
 
-        Self { tera_ctx }
+        Self {
+            tera_ctx,
+            consumer_name: None,
+        }
     }
 
     pub fn render_template(&self, tera: &Tera, name: &str) -> String {
         tera.render(name, &self.tera_ctx).unwrap_or_default()
+    }
+
+    pub fn set_consumer_name(&mut self, name: impl Into<String>) {
+        self.consumer_name = Some(name.into());
+    }
+
+    pub fn consumer_name(&self) -> Option<&str> {
+        self.consumer_name.as_deref()
     }
 }
 

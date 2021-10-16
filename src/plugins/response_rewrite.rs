@@ -1,6 +1,6 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, convert::TryInto, sync::Arc};
 
-use anyhow::{Context as _, Result};
+use anyhow::{Context, Result};
 use bytes::Bytes;
 use poem::{
     http::{header, header::HeaderName, HeaderValue, StatusCode},
@@ -14,7 +14,7 @@ use crate::{
     plugins::{NextPlugin, Plugin, PluginContext},
 };
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Config {
     status_code: Option<u16>,
@@ -55,7 +55,7 @@ impl PluginConfig for Config {
                 .with_context(|| format!("failed to parse header name `{}`", name))?;
 
             let mut tera = Tera::default();
-            tera.add_raw_template("value", &template)
+            tera.add_raw_template("value", template)
                 .with_context(|| format!("failed to parse the value of header `{}`", name))?;
 
             headers.insert(header_name, tera);
@@ -95,7 +95,7 @@ impl Plugin for ResponseRewrite {
 
         let headers = resp.headers_mut();
         for (name, value) in &self.headers {
-            let value = ctx.render_template(&value, "value");
+            let value = ctx.render_template(value, "value");
             if !value.is_empty() {
                 if let Ok(header_value) = value.parse::<HeaderValue>() {
                     headers.insert(name.clone(), header_value);

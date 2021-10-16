@@ -13,7 +13,7 @@ enum KeyIn {
     Query,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Config {
     key: String,
@@ -27,7 +27,7 @@ fn default_key_name() -> String {
     "apikey".to_string()
 }
 
-#[typetag::serde(name = "basic")]
+#[typetag::serde(name = "apikey")]
 #[async_trait::async_trait]
 impl AuthPluginConfig for Config {
     async fn create(&self) -> Result<Arc<dyn AuthPlugin>> {

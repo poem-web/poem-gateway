@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use dyn_clone::DynClone;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -9,11 +10,13 @@ use crate::{
 };
 
 #[typetag::serde(tag = "type")]
-pub trait ConsumerFilterConfig: Send + Sync + 'static {
+pub trait ConsumerFilterConfig: DynClone + Send + Sync + 'static {
     fn create(&self) -> Result<Arc<dyn ConsumerFilter>>;
 }
 
-#[derive(Serialize, Deserialize)]
+dyn_clone::clone_trait_object!(ConsumerFilterConfig);
+
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ConsumerConfig {
     #[serde(default)]

@@ -2,7 +2,7 @@ mod memory;
 mod redis;
 mod storage;
 
-use std::sync::Arc;
+use std::{convert::TryInto, sync::Arc};
 
 use anyhow::{Context, Result};
 use poem::{http::StatusCode, IntoResponse, Request, Response};
@@ -19,7 +19,7 @@ use crate::{
     },
 };
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Copy, Clone)]
 #[serde(rename_all = "camelCase")]
 enum Key {
     RemoteIp,
@@ -28,7 +28,7 @@ enum Key {
     ConsumerName,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Config {
     #[serde(default = "default_interval")]

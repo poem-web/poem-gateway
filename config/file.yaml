@@ -1,0 +1,21 @@
+provider:
+  type: file
+  path: simple.yaml
+admin:
+  listeners:
+    - acceptor:
+        type: tcp
+        bind: 127.0.0.1:4000
+  routes:
+    - path: /api
+      service:
+        endpoint:
+          type: openapiAdmin
+    - path: /graphql
+      service:
+        endpoint:
+          type: graphqlAdmin
+    - path: /metrics
+      service:
+        endpoint:
+          type: prometheusExporter

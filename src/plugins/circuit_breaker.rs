@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{convert::TryFrom, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
 use bytes::Bytes;
@@ -14,14 +14,14 @@ use crate::{
     plugins::{NextPlugin, Plugin, PluginContext},
 };
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 enum BreakStatusCodes {
     In(Vec<u16>),
     NotIn(Vec<u16>),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Config {
     break_status_codes: BreakStatusCodes,

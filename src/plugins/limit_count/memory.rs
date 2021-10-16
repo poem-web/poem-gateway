@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::plugins::limit_count::storage::{Storage, StorageConfig};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MemoryStorageConfig {}
 
@@ -85,10 +85,7 @@ impl Storage for MemoryStorage {
         let now = Instant::now();
         self.clear_expired_keys(now);
 
-        let mut item = self
-            .map
-            .entry(key.into())
-            .or_insert_with(|| (now, self.refill));
+        let mut item = self.map.entry(key).or_insert_with(|| (now, self.refill));
         let (last_fill_at, tokens) = item.value_mut();
 
         if now - *last_fill_at > self.interval {

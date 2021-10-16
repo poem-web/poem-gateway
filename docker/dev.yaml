@@ -1,0 +1,39 @@
+version: '3'
+
+networks:
+  poem-gateway-dev:
+
+services:
+  etcd1:
+    image: quay.io/coreos/etcd
+    command: etcd -name etcd1 -advertise-client-urls http://0.0.0.0:2379 -listen-client-urls http://0.0.0.0:2379 -listen-peer-urls http://0.0.0.0:2380 -initial-cluster-token etcd-cluster -initial-cluster "etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380" -initial-cluster-state new
+    ports:
+      - "23791:2379"
+      - "2380"
+    networks:
+      - poem-gateway-dev
+
+  etcd2:
+    image: quay.io/coreos/etcd
+    command: etcd -name etcd2 -advertise-client-urls http://0.0.0.0:2379 -listen-client-urls http://0.0.0.0:2379 -listen-peer-urls http://0.0.0.0:2380 -initial-cluster-token etcd-cluster -initial-cluster "etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380" -initial-cluster-state new
+    ports:
+      - "23792:2379"
+      - "2380"
+    networks:
+      - poem-gateway-dev
+
+  etcd3:
+    image: quay.io/coreos/etcd
+    command: etcd -name etcd3 -advertise-client-urls http://0.0.0.0:2379 -listen-client-urls http://0.0.0.0:2379 -listen-peer-urls http://0.0.0.0:2380 -initial-cluster-token etcd-cluster -initial-cluster "etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380" -initial-cluster-state new
+    ports:
+      - "23793:2379"
+      - "2380"
+    networks:
+      - poem-gateway-dev
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - poem-gateway-dev

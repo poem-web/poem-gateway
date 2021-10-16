@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{config::AuthPluginConfig, plugins::AuthPlugin};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Config {
     username: String,
