@@ -6,6 +6,7 @@ mod cors;
 mod limit_count;
 mod prometheus;
 mod request_id;
+mod request_validation;
 mod response_rewrite;
 
 use std::{
