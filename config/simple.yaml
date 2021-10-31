@@ -1,10 +1,10 @@
 listeners:
   - acceptor:
       type: tcp
-      bind: 0.0.0.0:8000
+      bind: 0.0.0.0:3000
   - acceptor:
       type: tcp
-      bind: 127.0.0.1:8080
+      bind: 127.0.0.1:3080
 consumers:
   - name: sunli
     auth:
@@ -18,7 +18,8 @@ routes:
       endpoint:
         type: upstream
         scheme: http
-        host: localhost:3000
+        host: localhost:8000
+        websocket: true
     plugins:
       - type: responseRewrite
         headers:

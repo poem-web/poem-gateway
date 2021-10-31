@@ -82,7 +82,6 @@ impl EndpointConfig for Config {
                         Ok(upgraded) => upgraded,
                         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into(),
                     };
-
                     let client_stream = tokio_tungstenite::WebSocketStream::from_raw_socket(
                         upgraded,
                         Role::Server,
