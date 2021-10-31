@@ -72,6 +72,7 @@ impl EndpointConfig for Config {
                         match tokio_tungstenite::connect_async(req).await {
                             Ok(res) => res,
                             Err(err) => {
+                                error!(error = %err, "failed to connect to upstream websocket");
                                 return Response::builder()
                                     .status(StatusCode::SERVICE_UNAVAILABLE)
                                     .body(err.to_string());

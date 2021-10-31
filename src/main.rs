@@ -89,7 +89,7 @@ async fn main() {
 
     loop {
         let mut watcher_stream =
-            DebouncedStream::new(config_provider.watch(), Duration::from_secs(10));
+            DebouncedStream::new(config_provider.watch(), Duration::from_secs(2));
 
         while let Some(res) = watcher_stream.next().await {
             let cfg = match res {
