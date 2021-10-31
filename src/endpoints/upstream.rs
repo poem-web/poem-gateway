@@ -64,7 +64,7 @@ impl EndpointConfig for Config {
                         Ok(upgrade) => upgrade,
                         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into(),
                     };
-                    let req = create_new_request(scheme, req, authority);
+                    let req = create_new_request(scheme, req, authority, true);
 
                     // websocket
                     let req = Into::<hyper::Request<_>>::into(req).map(|_| ());
@@ -74,7 +74,7 @@ impl EndpointConfig for Config {
                             Err(err) => {
                                 return Response::builder()
                                     .status(StatusCode::SERVICE_UNAVAILABLE)
-                                    .body(err.to_string())
+                                    .body(err.to_string());
                             }
                         };
 
@@ -98,7 +98,7 @@ impl EndpointConfig for Config {
                 }
 
                 match client
-                    .request(create_new_request(scheme, req, authority).into())
+                    .request(create_new_request(scheme, req, authority, false).into())
                     .await
                 {
                     Ok(resp) => resp.into(),
@@ -141,7 +141,12 @@ fn add_proxy_headers(headers: &mut HeaderMap, remote_addr: RemoteAddr) {
     }
 }
 
-fn create_new_request(scheme: UpstreamScheme, req: Request, authority: Authority) -> Request {
+fn create_new_request(
+    scheme: UpstreamScheme,
+    req: Request,
+    authority: Authority,
+    websocket: bool,
+) -> Request {
     let remote_addr = req.remote_addr().clone();
     let (
         RequestParts {
@@ -154,9 +159,16 @@ fn create_new_request(scheme: UpstreamScheme, req: Request, authority: Authority
     ) = req.into_parts();
     let mut uri_parts = uri.into_parts();
 
-    uri_parts.scheme = match scheme {
-        UpstreamScheme::Http => Some(poem::http::uri::Scheme::HTTP),
-        UpstreamScheme::Https => Some(poem::http::uri::Scheme::HTTPS),
+    uri_parts.scheme = if !websocket {
+        match scheme {
+            UpstreamScheme::Http => Some(poem::http::uri::Scheme::HTTP),
+            UpstreamScheme::Https => Some(poem::http::uri::Scheme::HTTPS),
+        }
+    } else {
+        match scheme {
+            UpstreamScheme::Http => Some("ws".parse().unwrap()),
+            UpstreamScheme::Https => Some("wss".parse().unwrap()),
+        }
     };
     uri_parts.authority = Some(authority.clone());
 
