@@ -1922,9 +1922,9 @@ checksum = "12295df4f294471248581bc09bef3c38a5e46f1e36d6a37353621a0c6c357e1f"
 
 [[package]]
 name = "poem"
-version = "1.0.14"
+version = "1.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6cb84a8507f521c4597f497f8b41c0f5bc6cf169dd9e751e8ca3a1185deab10f"
+checksum = "553e44cfbea89ad736e7fcfe24fd94d970bab14ce9a3fff8ef093528d83f49a8"
 dependencies = [
  "askama",
  "async-trait",
@@ -2017,6 +2017,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
+ "tokio-tungstenite",
  "tokio-util",
  "tracing",
  "tracing-subscriber",
@@ -2410,6 +2411,18 @@ dependencies = [
  "ring",
  "sct",
  "webpki",
+]
+
+[[package]]
+name = "rustls-native-certs"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a07b7c1885bd8ed3831c289b7870b13ef46fe0e856d288c30d9cc17d75a2092"
+dependencies = [
+ "openssl-probe",
+ "rustls",
+ "schannel",
+ "security-framework",
 ]
 
 [[package]]
@@ -3036,8 +3049,12 @@ dependencies = [
  "futures-util",
  "log",
  "pin-project",
+ "rustls",
  "tokio",
+ "tokio-rustls",
  "tungstenite",
+ "webpki",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -3227,10 +3244,13 @@ dependencies = [
  "httparse",
  "log",
  "rand",
+ "rustls",
+ "rustls-native-certs",
  "sha-1 0.9.8",
  "thiserror",
  "url",
  "utf-8",
+ "webpki",
 ]
 
 [[package]]
