@@ -17,8 +17,11 @@ routes:
     service:
       endpoint:
         type: upstream
+        lb:
+          type: roundrobin
         scheme: http
-        host: localhost:8000
+        nodes:
+          - localhost:8000
         websocket: true
     plugins:
       - type: responseRewrite
