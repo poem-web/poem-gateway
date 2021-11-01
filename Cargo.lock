@@ -2012,6 +2012,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "serde_yaml",
+ "sha1",
  "structopt",
  "tera",
  "thiserror",

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{convert::TryInto, sync::Arc};
 
 use anyhow::{Context, Result};
 use futures_util::StreamExt;
@@ -10,6 +10,7 @@ use poem::{
     Addr, Endpoint, Request, RequestParts, Response,
 };
 use serde::{Deserialize, Serialize};
+use sha1::Sha1;
 use tokio_tungstenite::tungstenite::protocol::Role;
 
 use crate::config::EndpointConfig;
@@ -60,42 +61,67 @@ impl EndpointConfig for Config {
                         return StatusCode::BAD_REQUEST.into();
                     }
 
+                    let key = match req.headers().get(header::SEC_WEBSOCKET_KEY).cloned() {
+                        Some(key) => key,
+                        None => return StatusCode::BAD_REQUEST.into(),
+                    };
+
                     let upgrade = match req.take_upgrade() {
                         Ok(upgrade) => upgrade,
-                        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into(),
+                        Err(err) => {
+                            error!(error = ?err, "failed to take the upgrade");
+                            return StatusCode::INTERNAL_SERVER_ERROR.into();
+                        }
                     };
-                    let req = create_new_request(scheme, req, authority, true);
+                    let protocol = req.headers().get(header::SEC_WEBSOCKET_PROTOCOL).cloned();
+                    let mut req = create_new_request(scheme, req, authority, true);
+
+                    req.headers_mut().remove(header::SEC_WEBSOCKET_KEY);
 
                     // websocket
                     let req = Into::<hyper::Request<_>>::into(req).map(|_| ());
-                    let (upstream_ws, upstream_resp) =
-                        match tokio_tungstenite::connect_async(req).await {
-                            Ok(res) => res,
+                    let (upstream_ws, _) = match tokio_tungstenite::connect_async(req).await {
+                        Ok(res) => res,
+                        Err(err) => {
+                            error!(error = %err, "failed to connect to upstream websocket");
+                            return Response::builder()
+                                .status(StatusCode::SERVICE_UNAVAILABLE)
+                                .body(err.to_string());
+                        }
+                    };
+
+                    tokio::spawn(async move {
+                        let upgraded = match upgrade.await {
+                            Ok(upgraded) => upgraded,
                             Err(err) => {
-                                error!(error = %err, "failed to connect to upstream websocket");
-                                return Response::builder()
-                                    .status(StatusCode::SERVICE_UNAVAILABLE)
-                                    .body(err.to_string());
+                                error!(error = ?err, "failed to upgrade the connection");
+                                return;
                             }
                         };
 
-                    let upgraded = match upgrade.await {
-                        Ok(upgraded) => upgraded,
-                        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into(),
-                    };
-                    let client_stream = tokio_tungstenite::WebSocketStream::from_raw_socket(
-                        upgraded,
-                        Role::Server,
-                        None,
-                    )
-                    .await;
-                    let (sink, stream) = client_stream.split();
-                    let (upstream_sink, upstream_stream) = upstream_ws.split();
+                        let client_stream = tokio_tungstenite::WebSocketStream::from_raw_socket(
+                            upgraded,
+                            Role::Server,
+                            None,
+                        )
+                        .await;
+                        let (sink, stream) = client_stream.split();
+                        let (upstream_sink, upstream_stream) = upstream_ws.split();
 
-                    tokio::spawn(stream.forward(upstream_sink));
-                    tokio::spawn(upstream_stream.forward(sink));
+                        tokio::spawn(stream.forward(upstream_sink));
+                        tokio::spawn(upstream_stream.forward(sink));
+                    });
 
-                    return upstream_resp.map(|_| hyper::Body::empty()).into();
+                    let mut builder = Response::builder()
+                        .status(StatusCode::SWITCHING_PROTOCOLS)
+                        .header(header::CONNECTION, "upgrade")
+                        .header(header::UPGRADE, "websocket")
+                        .header(header::SEC_WEBSOCKET_ACCEPT, sign(key.as_bytes()));
+                    if let Some(protocol) = protocol {
+                        builder = builder.header(header::SEC_WEBSOCKET_PROTOCOL, protocol);
+                    }
+
+                    return builder.finish();
                 }
 
                 match client
@@ -182,4 +208,11 @@ fn create_new_request(
     *new_req.headers_mut() = headers;
 
     new_req
+}
+
+fn sign(key: &[u8]) -> HeaderValue {
+    let mut sha1 = Sha1::default();
+    sha1.update(key);
+    sha1.update(&b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"[..]);
+    base64::encode(sha1.digest().bytes()).try_into().unwrap()
 }
