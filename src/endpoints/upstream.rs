@@ -24,7 +24,7 @@ use crate::{
 
 #[derive(Serialize, Deserialize, Copy, Clone)]
 #[serde(rename_all = "camelCase")]
-enum UpstreamScheme {
+pub enum UpstreamScheme {
     Http,
     Https,
 }
@@ -155,17 +155,17 @@ fn create_new_request(
     ) = req.into_parts();
     let mut uri_parts = uri.into_parts();
 
-    uri_parts.scheme = if !websocket {
+    uri_parts.scheme = Some(if !websocket {
         match scheme {
-            UpstreamScheme::Http => Some(poem::http::uri::Scheme::HTTP),
-            UpstreamScheme::Https => Some(poem::http::uri::Scheme::HTTPS),
+            UpstreamScheme::Http => poem::http::uri::Scheme::HTTP,
+            UpstreamScheme::Https => poem::http::uri::Scheme::HTTPS,
         }
     } else {
         match scheme {
-            UpstreamScheme::Http => Some("ws".parse().unwrap()),
-            UpstreamScheme::Https => Some("wss".parse().unwrap()),
+            UpstreamScheme::Http => "ws".parse().unwrap(),
+            UpstreamScheme::Https => "wss".parse().unwrap(),
         }
-    };
+    });
     uri_parts.authority = Some(authority.clone());
 
     add_proxy_headers(&mut headers, remote_addr);
