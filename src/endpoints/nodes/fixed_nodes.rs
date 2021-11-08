@@ -12,13 +12,9 @@ impl FixedNodes {
     }
 }
 
-#[async_trait::async_trait]
 impl Nodes for FixedNodes {
     #[inline]
-    async fn get(
-        &self,
-        callback: &(dyn Fn(&[Authority]) -> Option<Authority> + Send + Sync),
-    ) -> Option<Authority> {
+    fn get(&self, callback: &(dyn Fn(&[Authority]) -> Option<Authority>)) -> Option<Authority> {
         callback(&self.nodes)
     }
 }

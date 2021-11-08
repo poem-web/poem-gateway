@@ -23,8 +23,8 @@ hyper-rustls = { version = "0.22.1", default-features = false, features = ["webp
 itertools = "0.10.1"
 lru = "0.7.0"
 parking_lot = "0.11.2"
-poem = { version = "1.0.16", features = ["cookie", "websocket", "multipart", "sse", "tls", "prometheus"] }
-poem-openapi = "1.0.14"
+poem = { version = "1.0.21", features = ["cookie", "websocket", "multipart", "sse", "tls", "prometheus"] }
+poem-openapi = "1.0.20"
 r2d2 = "0.8.9"
 redis = { version = "0.21.3", features = ["tokio-comp", "cluster", "connection-manager"] }
 serde = { version = "1.0.130", features = ["derive"] }

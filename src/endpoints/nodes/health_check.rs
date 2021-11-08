@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use hyper::Client;
-use itertools::Itertools;
+use hyper::{Body, Client};
+use hyper_rustls::HttpsConnector;
 use poem::http::{uri::Authority, Method, StatusCode, Uri};
 use tokio::{sync::mpsc, time::Duration};
 
-use crate::endpoints::upstream::UpstreamScheme;
+use crate::endpoints::{nodes::Nodes, upstream::UpstreamScheme};
 
 enum Command {
     Get(Box<dyn Fn(&[Authority]) -> Option<Authority> + Send + Sync>),
@@ -27,12 +27,26 @@ impl HealthCheck {
     pub fn new(nodes: Vec<Authority>, cfg: HealthConfig) -> Self {
         let (tx, mut rx) = mpsc::channel(1);
         let cfg = Arc::new(cfg);
-        tokio::spawn(checker(nodes, cfg));
+        tokio::spawn(checker(nodes, cfg, rx));
         Self { tx }
     }
 }
 
-async fn checker(nodes: Vec<Authority>, cfg: Arc<HealthConfig>) {}
+impl Nodes for HealthCheck {
+    fn get(&self, callback: &dyn Fn(&[Authority]) -> Option<Authority>) -> Option<Authority> {
+        todo!()
+    }
+}
+
+async fn checker(
+    nodes: Vec<Authority>,
+    cfg: Arc<HealthConfig>,
+    tx_command: mpsc::Receiver<Command>,
+) {
+    loop {
+        // tokio::select! {}
+    }
+}
 
 async fn do_check(
     nodes: Vec<Authority>,
@@ -43,11 +57,12 @@ async fn do_check(
         .into_iter()
         .map({
             let cfg = cfg.clone();
-            |authority| {
+            move |authority| {
+                let cfg = cfg.clone();
                 tokio::spawn(async move {
                     let uri = match create_uri(&authority, &cfg) {
                         Ok(uri) => uri,
-                        Err(_) => return Err(authority),
+                        Err(_) => return (false, authority),
                     };
 
                     let https = HttpsConnector::with_webpki_roots();
@@ -58,19 +73,14 @@ async fn do_check(
                             hyper::Request::builder()
                                 .method(Method::GET)
                                 .uri(uri)
-                                .body(())
+                                .body(Body::empty())
                                 .unwrap(),
                         )
                         .await;
 
-                    let success = match res {
-                        Ok(resp) => cfg.status.contains(&resp.status()),
-                        Err(_) => false,
-                    };
-                    if success {
-                        Ok(authority)
-                    } else {
-                        Err(authority)
+                    match res {
+                        Ok(resp) => (cfg.status.contains(&resp.status()), authority),
+                        Err(_) => (false, authority),
                     }
                 })
             }
@@ -81,8 +91,8 @@ async fn do_check(
     let mut fail = Vec::new();
     for task in tasks {
         match task.await.unwrap() {
-            Ok(authority) => success.push(authority),
-            Err(authority) => fail.push(authority),
+            (true, authority) => success.push(authority),
+            (false, authority) => fail.push(authority),
         }
     }
 

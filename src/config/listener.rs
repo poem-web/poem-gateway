@@ -1,6 +1,6 @@
 use anyhow::Result;
 use dyn_clone::DynClone;
-use poem::listener::{AcceptorExt, BoxAcceptor};
+use poem::listener::{AcceptorExt, BoxAcceptor, IntoTlsConfigStream};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -25,8 +25,9 @@ impl ListenerConfig {
                 .tls(
                     poem::listener::TlsConfig::new()
                         .cert(tls.cert.clone())
-                        .key(tls.key.clone()),
-                )?
+                        .key(tls.key.clone())
+                        .into_stream()?,
+                )
                 .boxed();
         }
         Ok(acceptor)

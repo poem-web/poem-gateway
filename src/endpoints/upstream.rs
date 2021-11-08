@@ -73,7 +73,7 @@ impl EndpointConfig for Config {
             Arc::new(move || {
                 let nodes = nodes.clone();
                 let lb = lb.clone();
-                async move { nodes.get(&move |nodes| lb.lock().get(nodes).cloned()).await }
+                nodes.get(&move |nodes| lb.lock().get(nodes).cloned())
             })
         };
 
@@ -82,7 +82,7 @@ impl EndpointConfig for Config {
             let get_node = get_node.clone();
 
             async move {
-                let authority = match get_node().await {
+                let authority = match get_node() {
                     Some(authority) => authority,
                     None => return StatusCode::SERVICE_UNAVAILABLE.into(),
                 };
