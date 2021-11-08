@@ -17,8 +17,7 @@ routes:
     service:
       endpoint:
         type: upstream
-        lb:
-          type: roundrobin
+        lb: roundrobin
         scheme: http
         nodes:
           - localhost:8000

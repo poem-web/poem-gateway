@@ -1,4 +1,8 @@
-use std::{convert::TryInto, sync::Arc};
+use std::{
+    convert::TryInto,
+    fmt::{self, Display, Formatter},
+    sync::Arc,
+};
 
 use anyhow::{Context, Result};
 use futures_util::StreamExt;
@@ -18,7 +22,7 @@ use crate::{
     config::EndpointConfig,
     endpoints::{
         load_balancer::{LoadBalancer, RoundRobin},
-        nodes::{FixedNodes, Nodes},
+        nodes::{FixedNodes, HealthCheck, HealthConfig, Nodes},
     },
 };
 
@@ -29,6 +33,24 @@ pub enum UpstreamScheme {
     Https,
 }
 
+impl Display for UpstreamScheme {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            UpstreamScheme::Http => write!(f, "http"),
+            UpstreamScheme::Https => write!(f, "https"),
+        }
+    }
+}
+
+impl UpstreamScheme {
+    pub fn websocket_scheme(&self) -> &'static str {
+        match self {
+            UpstreamScheme::Http => "ws",
+            UpstreamScheme::Https => "wss",
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Copy, Clone)]
 #[serde(rename_all = "lowercase")]
 enum LoadBalancerType {
@@ -37,9 +59,17 @@ enum LoadBalancerType {
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct UpstreamConfig {
+    pub scheme: UpstreamScheme,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct Config {
     lb: LoadBalancerType,
-    scheme: UpstreamScheme,
+    #[serde(flatten)]
+    upstream_config: UpstreamConfig,
+    health: Option<HealthConfig>,
     nodes: Vec<String>,
     #[serde(default)]
     websocket: bool,
@@ -53,7 +83,7 @@ impl EndpointConfig for Config {
     fn create(&self) -> Result<Arc<dyn Endpoint<Output = Response>>> {
         let https = HttpsConnector::with_webpki_roots();
         let client = Arc::new(Client::builder().build(https));
-        let scheme = self.scheme;
+        let upstream_config = Arc::new(self.upstream_config.clone());
         let websocket = self.websocket;
         let nodes = {
             let mut nodes = Vec::new();
@@ -66,7 +96,14 @@ impl EndpointConfig for Config {
             nodes
         };
         let get_node = {
-            let nodes = Arc::new(FixedNodes::new(nodes));
+            let nodes: Arc<dyn Nodes> = match self.health.clone() {
+                Some(health_config) => Arc::new(HealthCheck::new(
+                    upstream_config.clone(),
+                    nodes,
+                    health_config,
+                )),
+                None => Arc::new(FixedNodes::new(nodes)),
+            };
             let lb = Arc::new(Mutex::new(match self.lb {
                 LoadBalancerType::RoundRobin => RoundRobin::default(),
             }));
@@ -78,6 +115,7 @@ impl EndpointConfig for Config {
         };
 
         Ok(Arc::new(poem::endpoint::make(move |req| {
+            let upstream_config = upstream_config.clone();
             let client = client.clone();
             let get_node = get_node.clone();
 
@@ -92,11 +130,11 @@ impl EndpointConfig for Config {
                     && req.headers().get(header::UPGRADE) == Some(&WEBSOCKET)
                 {
                     // is websocket
-                    return proxy_websocket(scheme, req, authority).await;
+                    return proxy_websocket(&upstream_config, req, authority).await;
                 }
 
                 match client
-                    .request(create_new_request(scheme, req, authority, false).into())
+                    .request(create_new_request(&upstream_config, req, authority, false).into())
                     .await
                 {
                     Ok(resp) => resp.into(),
@@ -138,7 +176,7 @@ fn add_proxy_headers(headers: &mut HeaderMap, remote_addr: RemoteAddr) {
 }
 
 fn create_new_request(
-    scheme: UpstreamScheme,
+    upstream_config: &UpstreamConfig,
     req: Request,
     authority: Authority,
     websocket: bool,
@@ -156,15 +194,12 @@ fn create_new_request(
     let mut uri_parts = uri.into_parts();
 
     uri_parts.scheme = Some(if !websocket {
-        match scheme {
+        match upstream_config.scheme {
             UpstreamScheme::Http => poem::http::uri::Scheme::HTTP,
             UpstreamScheme::Https => poem::http::uri::Scheme::HTTPS,
         }
     } else {
-        match scheme {
-            UpstreamScheme::Http => "ws".parse().unwrap(),
-            UpstreamScheme::Https => "wss".parse().unwrap(),
-        }
+        upstream_config.scheme.websocket_scheme().parse().unwrap()
     });
     uri_parts.authority = Some(authority.clone());
 
@@ -186,7 +221,11 @@ fn sign(key: &[u8]) -> HeaderValue {
     base64::encode(sha1.digest().bytes()).try_into().unwrap()
 }
 
-async fn proxy_websocket(scheme: UpstreamScheme, req: Request, authority: Authority) -> Response {
+async fn proxy_websocket(
+    upstream_config: &UpstreamConfig,
+    req: Request,
+    authority: Authority,
+) -> Response {
     if req.method() != Method::GET
         || req.headers().get(header::SEC_WEBSOCKET_VERSION) != Some(&HeaderValue::from_static("13"))
     {
@@ -206,7 +245,7 @@ async fn proxy_websocket(scheme: UpstreamScheme, req: Request, authority: Author
         }
     };
     let protocol = req.headers().get(header::SEC_WEBSOCKET_PROTOCOL).cloned();
-    let mut req = create_new_request(scheme, req, authority, true);
+    let mut req = create_new_request(upstream_config, req, authority, true);
 
     req.headers_mut().remove(header::SEC_WEBSOCKET_KEY);
 
