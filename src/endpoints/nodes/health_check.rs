@@ -69,6 +69,8 @@ async fn checker(
         let alive_nodes = do_check(upstream_config.clone(), nodes.clone(), cfg.clone()).await;
         if let Some(current_alive_nodes) = current_alive_nodes.upgrade() {
             *current_alive_nodes.lock() = alive_nodes;
+        } else {
+            break;
         }
         tokio::time::sleep(cfg.interval).await;
     }
